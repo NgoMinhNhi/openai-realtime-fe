@@ -181,14 +181,13 @@ dataChannel.current.onmessage = (event) => {
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-gray-800 mb-2 flex items-center justify-center gap-3">
             <span className="text-3xl">🎙</span>
-            OpenAI Realtime Translator
+            OpenAI Realtime Assistant
           </h1>
-          <p className="text-gray-600 text-lg">Vai trò: Phiên dịch viên realtime tiếng Việt ↔ tiếng Anh</p>
         </div>
 
         <Card className="mb-6 shadow-lg">
           <CardHeader className="text-center pb-4">
-            <CardTitle className="text-xl text-gray-700">Realtime Translation Control</CardTitle>
+            <CardTitle className="text-xl text-gray-700">Realtime Control</CardTitle>
           </CardHeader>
           <CardContent className="text-center space-y-4">
             <Button
@@ -216,14 +215,14 @@ dataChannel.current.onmessage = (event) => {
 
         <Card className="shadow-lg">
           <CardHeader>
-            <CardTitle className="text-lg text-gray-700 flex items-center gap-2">💬 Translation Log</CardTitle>
+            <CardTitle className="text-lg text-gray-700 flex items-center gap-2">💬 Conversation Log</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-80 overflow-y-auto bg-gray-50 rounded-lg p-4 space-y-3">
               {chatMessages.length === 0 ? (
                 <div className="text-center text-gray-500 py-8">
-                  <p>Translation history will appear here...</p>
-                  <p className="text-sm mt-2">Start speaking to begin translation</p>
+                  <p>Coversation history will appear here...</p>
+                  <p className="text-sm mt-2">Start speaking to begin conversations</p>
                 </div>
               ) : (
                 chatMessages.map((message, index) => (
