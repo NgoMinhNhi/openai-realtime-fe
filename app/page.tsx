@@ -91,7 +91,7 @@ Critical rules:
         };
         setTimeout(() => {
           dataChannel.current.send(JSON.stringify(event));
-        }, 800);
+        }, 1000);
         console.log("📤 Sent conversation.item.create", event);
 
         setIsConnected(true);
