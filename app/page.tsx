@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useSearchParams } from "next/navigation";
 
 const iceServers = [
   { urls: "stun:iztalk.ai:3478" },
@@ -63,7 +64,13 @@ Critical rules:
   const handleStartStop = async () => {
     if (!isConnected) {
       setStatus("🎤 Requesting microphone...");
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          noiseSuppression: true,
+          echoCancellation: true,
+          autoGainControl: true,
+        }
+      });
       console.log("✅ Microphone access granted");
       localStream.current = stream;
 
@@ -74,38 +81,70 @@ Critical rules:
       dataChannel.current = pc.current.createDataChannel("oai-events");
       console.log("📨 Created dataChannel");
 
-      dataChannel.current.onopen = () => {
-        console.log("✅ dataChannel open");
-        const event = {
-          type: "conversation.item.create",
-          item: {
-            type: "message",
-            role: "user",
-            content: [
-              {
-                type: "input_text",
-                text: prompt2,
-              }
-            ]
-          },
-        };
-        setTimeout(() => {
-          dataChannel.current.send(JSON.stringify(event));
-        }, 1000);
-        console.log("📤 Sent conversation.item.create", event);
+      dataChannel.current.onopen = async () => {
+        console.log("✅ dataChannel is open");
 
-        setIsConnected(true);
-        setIsListening(true);
-        setStatus("✅ Connected - Listening...");
+        if (dataChannel.current.readyState !== "open") {
+          console.warn("⚠️ dataChannel is not open. Current state:", dataChannel.current.readyState);
+          return;
+        }
+
+        try {
+          // 1️⃣ Gửi session.update để bật transcription
+          const updateConfig = {
+          type: "session.update",
+          session: {
+            instructions: prompt,
+            input_audio_transcription: { model: "whisper-1" },
+            // voice: { id: "nova" },
+            modalities: ["audio", "text"]
+          }
+        }
+          dataChannel.current.send(JSON.stringify(updateConfig));
+          console.log("📤 Sent session.update", updateConfig);
+
+          // // 2️⃣ Gửi prompt khởi tạo hội thoại
+          const initPrompt = {
+            type: "conversation.item.create",
+            item: {
+              type: "message",
+              role: "user",
+              content: [
+                {
+                  type: "input_text",
+                  text: prompt, // hoặc prompt2 tùy vào chế độ
+                },
+              ],
+            },
+          };
+          // Nên đợi 100–200ms để tránh gửi quá sớm
+          setTimeout(() => {
+            if (dataChannel.current.readyState === "open") {
+              dataChannel.current.send(JSON.stringify(initPrompt));
+              console.log("📤 Sent conversation.item.create", initPrompt);
+            } else {
+              console.warn("⚠️ dataChannel not open when sending prompt");
+            }
+          }, 200);
+
+          // ✅ Cập nhật trạng thái UI
+          setIsConnected(true);
+          setIsListening(true);
+          setStatus("✅ Connected - Listening...");
+        } catch (err) {
+          console.error("❌ Error during onopen send:", err);
+          setStatus("❌ Error sending init messages");
+        }
       };
+
 
       dataChannel.current.onmessage = (event) => {
         const msg = JSON.parse(event.data);
         console.log("📥 Received message", msg);
 
         // Hiển thị lời nói của người dùng (transcription từ audio)
-        if (msg.type === "input_audio_transcription.final") {
-          const text = msg.text;
+        if (msg.type === "conversation.item.input_audio_transcription.completed") {
+          const text = msg.transcript;
           if (text?.trim()) {
             console.log("👤 Final transcription:", text);
             setChatMessages((prev) => {
@@ -117,14 +156,14 @@ Critical rules:
               return updated;
             });
 
-            const createPayload = {
-              type: "response.create",
-              response: {
-                modalities: ["audio", "text"],
-              },
-            };
-            dataChannel.current.send(JSON.stringify(createPayload));
-            console.log("📤 Sent response.create", createPayload);
+            // const createPayload = {
+            //   type: "response.create",
+            //   response: {
+            //     modalities: ["audio", "text"],
+            //   },
+            // };
+            // dataChannel.current.send(JSON.stringify(createPayload));
+            // console.log("📤 Sent response.create", createPayload);
           }
         }
 
